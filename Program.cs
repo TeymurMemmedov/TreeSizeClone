@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace TreeSizeClone
@@ -9,15 +10,49 @@ namespace TreeSizeClone
 
         {
             Console.InputEncoding = Encoding.Unicode;
-            Console.OutputEncoding= Encoding.Unicode;
+            Console.OutputEncoding = Encoding.Unicode;
+            Console.ForegroundColor= ConsoleColor.DarkRed;
+
+            
 
             Console.WriteLine("Treesize is a program to monitor and analyze how your computer's memory is managed.");
             Console.Write("Please enter the path for analyse:");
             string targetPath = Console.ReadLine();
-            MyDirectory directory = new MyDirectory(targetPath);
-
+            try
+            {
+                MyDirectory directory = new MyDirectory(targetPath);
+                Console.WriteLine($"{directory.Name}:{directory.SizeRelative} {directory.SizeUnit} ({directory.Subdirectories.Length} folders, {directory.Files.Length} files)");
+                PrintSubDirectories(directory);
+                PrintFiles(directory.Files, "");
+            }
+            catch (UnauthorizedAccessException) {
+                Console.WriteLine("\nSorry, I have not access to this path :(");
+            }
+            
 
         }
+
+        public static void PrintSubDirectories(MyDirectory myDirectory, string indent = "")
+        {
+            foreach (var subdirectory in myDirectory.Subdirectories)
+            {
+                Console.WriteLine($"|{indent}---+{subdirectory.Name} [{subdirectory.SizeRelative}{subdirectory.SizeUnit}]");
+                PrintFiles(subdirectory.Files, $"{indent}   ");
+                Thread.Sleep(75);
+                PrintSubDirectories(subdirectory, $"{indent}    |");
+                
+            }
+        }
+
+        public static void PrintFiles(MyFile[] filesOfDirectory, string indent)
+        {
+            foreach (var file in filesOfDirectory)
+            {
+                Console.WriteLine($"|{indent} |--{file.Name} [{file.SizeRelative}{file.SizeUnit}]");
+                Thread.Sleep(200);
+            }
+        }
+
 
         public static string[] SizeConverter(long size)
         {
@@ -31,9 +66,9 @@ namespace TreeSizeClone
             double sizeDouble = Convert.ToDouble(size);
             while (sizeDouble >= 1024 && unitIndex < units.Length - 1)
             {
-                 
-                 sizeDouble /= 1024;
-                 unitIndex++;
+
+                sizeDouble /= 1024;
+                unitIndex++;
             }
 
             return new string[] { sizeDouble.ToString("F2"), units[unitIndex] };
@@ -64,28 +99,15 @@ namespace TreeSizeClone
             this.Files = CreateFileArray(this.Path);
             Array.Sort(this.Files, new SizeAbsoluteComparer());
             this.SizeAbsolute = GetFileArraySize(this.Files);
+            this.Subdirectories = CreateSubDirectoryArray(Path);
+            this.SizeAbsolute += GetSubdirectoriesArraySize(this.Subdirectories);
+            Array.Sort(this.Subdirectories, new SizeAbsoluteComparerForDirectories());
             string[] sizeProps = Program.SizeConverter(this.SizeAbsolute);
             this.SizeRelative = double.Parse(sizeProps[0]);
             this.SizeUnit = sizeProps[1];
-            PrintDirectory(this);
-
         }
 
-        public static void PrintDirectory(MyDirectory directory)
-        {
-            string defis = "-";
-            string under = "|";
-            Console.WriteLine($"{directory.Name}:{directory.SizeRelative} {directory.SizeUnit}");
 
-            Thread.Sleep(500);
-
-            foreach (var file in directory.Files)
-            {
-                Console.Write(under);
-                Console.WriteLine($"{string.Concat(Enumerable.Repeat(defis, 4))}{file.Name} : {file.SizeRelative} {file.SizeUnit}");
-                Thread.Sleep(50);
-            }
-        }
 
         public static MyFile[] CreateFileArray(string _directory)
         {
@@ -115,6 +137,33 @@ namespace TreeSizeClone
             return sizeOfFiles;
         }
 
+        public static MyDirectory[] CreateSubDirectoryArray(string _dictionary)
+        {
+            var subDirectories = Directory.GetDirectories(_dictionary);
+            var subDirectoriesInMyDictionary = new MyDirectory[subDirectories.Length];
+            int i = 0;
+            foreach (var subDirectory in subDirectories)
+            {
+                subDirectoriesInMyDictionary[i] = new MyDirectory(subDirectory);
+                i++;
+            }
+            return subDirectoriesInMyDictionary;
+
+        }
+
+        public static long GetSubdirectoriesArraySize(MyDirectory[] SubdirectoryArray)
+        {
+            long sizeOfSubDirectories = 0;
+
+            foreach (var subdirectory in SubdirectoryArray)
+            {
+
+                sizeOfSubDirectories += subdirectory.SizeAbsolute;
+
+            }
+            return sizeOfSubDirectories;
+        }
+
 
     }
 
@@ -139,6 +188,14 @@ namespace TreeSizeClone
     public class SizeAbsoluteComparer : IComparer<MyFile>
     {
         public int Compare(MyFile x, MyFile y)
+        {
+            return y.SizeAbsolute.CompareTo(x.SizeAbsolute);
+        }
+    }
+
+    public class SizeAbsoluteComparerForDirectories : IComparer<MyDirectory>
+    {
+        public int Compare(MyDirectory x, MyDirectory y)
         {
             return y.SizeAbsolute.CompareTo(x.SizeAbsolute);
         }
