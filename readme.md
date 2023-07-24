@@ -25,9 +25,7 @@ TreeSizeClone is a program to monitor and analyze how your computer's memory is 
 
 - .NET Framework or .NET Core runtime
 
-## Limitations
 
-- Access restrictions: If the program encounters non-accessible directories, it will display an error message and skip those directories.
 
 ## Contributions
 
